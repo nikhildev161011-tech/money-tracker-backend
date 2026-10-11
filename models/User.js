@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
   },
   securityAnswer: {
     type: String,
-    required: true,
+    default: 'Not Provided',
     trim: true
   }
 }, { timestamps: true });

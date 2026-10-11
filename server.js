@@ -36,6 +36,14 @@ app.get('/', (req, res) => {
   res.status(200).json({ status: "Money Tracker Backend is running smoothly." });
 });
 
+// Self-ping mechanism to prevent Render free tier from spinning down
+const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+setInterval(() => {
+  fetch(BACKEND_URL)
+    .then(res => console.log("Keep-alive ping sent successfully."))
+    .catch(err => console.error("Keep-alive ping error:", err.message));
+}, 14 * 60 * 1000); // Ping every 14 minutes
+
 app.use((err, req, res, next) => {
   console.error("Server Error Stack:", err.stack);
   res.status(500).json({

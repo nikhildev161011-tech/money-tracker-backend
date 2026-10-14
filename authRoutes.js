@@ -19,10 +19,6 @@ try {
   console.error("Firebase Admin Initialization Warning:", error.message);
 }
 
-/**
- * @route   POST /api/auth/register
- * @desc    Register a new user with email and password
- */
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, securityQuestion, securityAnswer } = req.body;
@@ -61,10 +57,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-/**
- * @route   POST /api/auth/login
- * @desc    Authenticate user with email and password
- */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -91,10 +83,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-/**
- * @route   POST /api/auth/google
- * @desc    Authenticate or register user via Google Firebase ID Token
- */
 router.post('/google', async (req, res) => {
   try {
     const { token } = req.body;

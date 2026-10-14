@@ -3,13 +3,16 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-// Safely require and initialize Firebase Admin SDK to prevent undefined crashes
 let admin;
 try {
   admin = require('firebase-admin');
   if (admin && (!admin.apps || admin.apps.length === 0)) {
     admin.initializeApp({
-      credential: admin.credential.applicationDefault()
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined
+      })
     });
   }
 } catch (error) {
@@ -24,22 +27,18 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password, securityQuestion, securityAnswer } = req.body;
 
-    // Check if user already exists in database
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Email is already registered. Please sign in.' });
     }
 
-    // Validate password length constraints
     if (password.length < 6 || password.length > 15) {
       return res.status(400).json({ success: false, message: 'Password must be between 6 and 15 characters.' });
     }
 
-    // Hash the password securely using bcrypt
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create a new user instance
     const newUser = new User({
       name,
       email,
@@ -70,13 +69,11 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user record by email
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    // Compare raw password with stored hashed password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: 'Invalid email or password.' });
@@ -110,15 +107,12 @@ router.post('/google', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Firebase Admin SDK is not initialized.' });
     }
 
-    // Verify the token received from the frontend with Firebase Admin
     const decodedToken = await admin.auth().verifyIdToken(token);
     const { email, name, uid } = decodedToken;
 
-    // Check if the user already exists in MongoDB
     let user = await User.findOne({ email });
 
     if (!user) {
-      // If user doesn't exist, create a new record for Google login user
       const dummyPassword = await bcrypt.hash(Math.random().toString(36), 10);
       user = new User({
         name: name || 'Google User',

@@ -113,7 +113,6 @@ router.post('/google', async (req, res) => {
     }
 
     res.status(200).json({
-      success:,
       success: true,
       message: 'Google authentication successful!',
       user: { id: user._id, name: user.name, email: user.email, firebaseUid: uid }

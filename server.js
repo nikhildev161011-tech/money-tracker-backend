@@ -24,25 +24,41 @@ mongoose.connect(MONGO_URI)
     console.error("MongoDB connection error:", err);
   });
 
-// Import Routes
 const transactionRoutes = require('./routes/transactionRoutes');
 const authRoutes = require('./routes/authRoutes');
 
-// Use Routes
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/auth', authRoutes);
+
+app.delete('/api/users/delete/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const db = mongoose.connection;
+
+    await db.collection('transactions').deleteMany({ userId: userId });
+
+    let deleteResult = await db.collection('users').deleteOne({ _id: new mongoose.Types.ObjectId(userId) });
+    if (deleteResult.deletedCount === 0) {
+      await db.collection('users').deleteOne({ id: userId });
+    }
+
+    res.status(200).json({ success: true, message: "Account and associated data deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting user account:", error);
+    res.status(500).json({ success: false, message: "Server error while deleting account." });
+  }
+});
 
 app.get('/', (req, res) => {
   res.status(200).json({ status: "Money Tracker Backend is running smoothly." });
 });
 
-// Self-ping mechanism to prevent Render free tier from spinning down
 const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 setInterval(() => {
   fetch(BACKEND_URL)
     .then(res => console.log("Keep-alive ping sent successfully."))
     .catch(err => console.error("Keep-alive ping error:", err.message));
-}, 14 * 60 * 1000); // Ping every 14 minutes
+}, 14 * 60 * 1000);
 
 app.use((err, req, res, next) => {
   console.error("Server Error Stack:", err.stack);

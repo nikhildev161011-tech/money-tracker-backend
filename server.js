@@ -1,7 +1,23 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const admin = require('firebase-admin');
 require('dotenv').config();
+
+// Initialize Firebase Admin SDK using environment variables or a secure configuration
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined
+      })
+    });
+  } catch (error) {
+    console.error("Firebase Admin Initialization Error:", error);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,41 +40,32 @@ mongoose.connect(MONGO_URI)
     console.error("MongoDB connection error:", err);
   });
 
+const verifyFirebaseToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: "Unauthorized: No token provided." });
+  }
+
+  const token = authHeader.split('Bearer ')[1];
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return res.status(403).json({ success: false, message: "Unauthorized: Invalid or expired token." });
+  }
+};
+
 const transactionRoutes = require('./routes/transactionRoutes');
 const authRoutes = require('./routes/authRoutes');
 
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/auth', authRoutes);
 
-app.delete('/api/users/delete/:id', async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const db = mongoose.connection;
-
-    await db.collection('transactions').deleteMany({ userId: userId });
-
-    let deleteResult = await db.collection('users').deleteOne({ _id: new mongoose.Types.ObjectId(userId) });
-    if (deleteResult.deletedCount === 0) {
-      await db.collection('users').deleteOne({ id: userId });
-    }
-
-    res.status(200).json({ success: true, message: "Account and associated data deleted successfully." });
-  } catch (error) {
-    console.error("Error deleting user account:", error);
-    res.status(500).json({ success: false, message: "Server error while deleting account." });
-  }
-});
-
 app.get('/', (req, res) => {
   res.status(200).json({ status: "Money Tracker Backend is running smoothly." });
 });
-
-const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-setInterval(() => {
-  fetch(BACKEND_URL)
-    .then(res => console.log("Keep-alive ping sent successfully."))
-    .catch(err => console.error("Keep-alive ping error:", err.message));
-}, 14 * 60 * 1000);
 
 app.use((err, req, res, next) => {
   console.error("Server Error Stack:", err.stack);

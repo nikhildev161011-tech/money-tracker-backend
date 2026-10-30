@@ -4,7 +4,6 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 require('dotenv').config();
 
-// Initialize Firebase Admin SDK using environment variables or a secure configuration
 if (!admin.apps.length) {
   try {
     admin.initializeApp({
@@ -59,9 +58,11 @@ const verifyFirebaseToken = async (req, res, next) => {
 
 const transactionRoutes = require('./routes/transactionRoutes');
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/', (req, res) => {
   res.status(200).json({ status: "Money Tracker Backend is running smoothly." });
